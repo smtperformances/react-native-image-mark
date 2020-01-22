@@ -1,4 +1,4 @@
-import { ImageSourcePropType } from 'react-native';
+import { ImageSourcePropType, ImageResolvedAssetSource } from "react-native";
 export declare enum Position {
     topLeft = "topLeft",
     topCenter = "topCenter",
@@ -17,19 +17,19 @@ export declare enum ImageFormat {
     jpg = "jpg",
     base64 = "base64"
 }
-export declare type ShadowLayerStyle = {
-    'dx': number;
-    'dy': number;
-    'radius': number;
-    'color': string;
-};
-export declare type TextBackgroundStyle = {
-    'paddingX': number;
-    'paddingY': number;
-    'type': TextBackgroundType;
-    'color': string;
-};
-export declare type TextMarkOption = {
+export interface ShadowLayerStyle {
+    dx: number;
+    dy: number;
+    radius: number;
+    color: string;
+}
+export interface TextBackgroundStyle {
+    paddingX: number;
+    paddingY: number;
+    type: TextBackgroundType;
+    color: string;
+}
+export interface TextMarkOption {
     src: ImageSourcePropType;
     text: string;
     X?: number;
@@ -45,8 +45,8 @@ export declare type TextMarkOption = {
     textBackgroundStyle: TextBackgroundStyle;
     saveFormat?: ImageFormat;
     maxSize?: number;
-};
-export declare type ImageMarkOption = {
+}
+export interface ImageMarkOption {
     src: ImageSourcePropType;
     markerSrc: ImageSourcePropType;
     X?: number;
@@ -58,8 +58,28 @@ export declare type ImageMarkOption = {
     filename?: string;
     saveFormat?: ImageFormat;
     maxSize?: number;
-};
+}
+interface IImageMarkType {
+    imageSource: ImageResolvedAssetSource;
+    x: number;
+    y: number;
+}
+interface ITextMarkType {
+    text: string;
+    x: number;
+    y: number;
+    color: string;
+    fontName: string;
+    fontSize: number;
+}
+export declare type MarkType = IImageMarkType | ITextMarkType;
+export interface IMarksArrayOptions {
+    source: ImageResolvedAssetSource;
+    marksArray: MarkType[];
+}
 export default class Marker {
+    static markWithMarksArray(source: ImageResolvedAssetSource, marksArray: MarkType[]): Promise<string>;
     static markText(option: TextMarkOption): Promise<string>;
     static markImage(option: ImageMarkOption): Promise<string>;
 }
+export {};
