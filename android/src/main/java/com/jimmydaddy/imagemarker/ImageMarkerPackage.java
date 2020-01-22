@@ -30,6 +30,7 @@ public class ImageMarkerPackage implements ReactPackage {
         List<NativeModule> modules = new ArrayList<>();
 
         modules.add(new ImageMarkerManager(reactContext));
+        modules.add(new ImageMarker2Manager(reactContext));
 
         return modules;
     }
