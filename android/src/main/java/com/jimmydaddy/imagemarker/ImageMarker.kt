@@ -18,7 +18,6 @@ import com.facebook.drawee.backends.pipeline.Fresco.getImagePipeline
 import com.facebook.imagepipeline.image.CloseableImage
 import com.jimmydaddy.imagemarker.Utils.transRGBColor
 import java.io.ByteArrayOutputStream
-import kotlin.collections.HashMap
 
 class ImageMarker2Manager(context: ReactApplicationContext): ReactContextBaseJavaModule(context) {
     override fun getName(): String {
@@ -55,7 +54,7 @@ class ImageMarker2Manager(context: ReactApplicationContext): ReactContextBaseJav
         dataSource.subscribe(object : BaseBitmapDataSubscriber() {
             public override fun onNewResultImpl(background: Bitmap?) {
                 if (background == null) {
-                    promise.reject("marker error", "Can't retrieve the file from the src: " + uri!!)
+                    promise.reject("marker error", "Can't retrieve the file from the src: $uri")
                     return
                 }
                 try {
@@ -68,14 +67,15 @@ class ImageMarker2Manager(context: ReactApplicationContext): ReactContextBaseJav
                     canvas.drawBitmap(background, 0f, 0f, paint)
                     drawOnCanvas(destinationBitmap, canvas, paint, marksArrayList, 0, promise)
                 } catch (e: Exception) {
-                } finally {
-                    background.recycle()
-                    System.gc()
                 }
+//                finally {
+//                    background.recycle()
+//                    System.gc()
+//                }
             }
 
             override fun onFailureImpl(dataSource: DataSource<CloseableReference<CloseableImage>>) {
-                promise.reject("error", "Can't request the image from the uri: " + uri!!, dataSource.failureCause)
+                promise.reject("error", "Can't request the image from the uri: $uri", dataSource.failureCause)
             }
         }, executor)
 
@@ -118,30 +118,31 @@ class ImageMarker2Manager(context: ReactApplicationContext): ReactContextBaseJav
             promise: Promise
     ) {
         val uri = imageMark.imageSource?.get("uri") as? String?
-        val x = imageMark.x
-        val y = imageMark.y
+        val x = imageMark.x ?: 0.0
+        val y = imageMark.y ?: 0.0
         val imageRequest = ImageRequest.fromUri(uri)
         val dataSource = getImagePipeline().fetchDecodedImage(imageRequest, null)
         val executor = Executors.newSingleThreadExecutor()
         dataSource.subscribe(object : BaseBitmapDataSubscriber() {
             public override fun onNewResultImpl(bitmap: Bitmap?) {
                 if (bitmap == null) {
-                    promise.reject("marker error", "Can't retrieve the file from the src: " + uri!!)
+                    promise.reject("marker error", "Can't retrieve the file from the src: $uri")
                 }
                 try {
-                    canvas.drawBitmap(bitmap!!, x!!.toFloat(), y!!.toFloat(), paint)
+                    canvas.drawBitmap(bitmap, x.toFloat(), y.toFloat(), paint)
                 } catch (e: Exception) {
 
-                } finally {
-                    bitmap!!.recycle()
-                    System.gc()
                 }
+//                finally {
+//                    bitmap?.recycle()
+//                    System.gc()
+//                }
                 drawOnCanvas(destinationBitmap, canvas, paint, marksArray, index + 1, promise)
 
             }
 
             override fun onFailureImpl(dataSource: DataSource<CloseableReference<CloseableImage>>) {
-                promise.reject("error", "Can't request the image from the uri: " + uri!!, dataSource.failureCause)
+                promise.reject("error", "Can't request the image from the uri: $uri", dataSource.failureCause)
                 drawOnCanvas(destinationBitmap, canvas, paint, marksArray, index + 1, promise)
             }
         }, executor)
@@ -157,8 +158,8 @@ class ImageMarker2Manager(context: ReactApplicationContext): ReactContextBaseJav
             promise: Promise
     ) {
         val text = textMark.text
-        val x = textMark.x
-        val y = textMark.y
+        val x = textMark.x ?: 0.0
+        val y = textMark.y ?: 0.0
         val color = textMark.color
         val fontName = textMark.fontName
         val fontSize = textMark.fontSize
@@ -173,12 +174,12 @@ class ImageMarker2Manager(context: ReactApplicationContext): ReactContextBaseJav
                 textPaint.typeface = Typeface.DEFAULT
             }
 
-            textPaint.textSize = fontSize!!.toFloat()
+            textPaint.textSize = (fontSize ?: 12.0).toFloat()
             textPaint.color = Color.parseColor(transRGBColor(color))
 
             val textLayout = StaticLayout(text, textPaint, canvas.width, Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false)
             canvas.save()
-            canvas.translate(x!!.toFloat(), y!!.toFloat())
+            canvas.translate(x.toFloat(), y.toFloat())
             textLayout.draw(canvas)
             canvas.restore()
         } catch (e: Exception) {
