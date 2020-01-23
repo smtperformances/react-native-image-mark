@@ -18,6 +18,8 @@ import com.facebook.drawee.backends.pipeline.Fresco.getImagePipeline
 import com.facebook.imagepipeline.image.CloseableImage
 import com.jimmydaddy.imagemarker.Utils.transRGBColor
 import java.io.ByteArrayOutputStream
+import android.graphics.BitmapFactory
+
 
 class ImageMarker2Manager(context: ReactApplicationContext): ReactContextBaseJavaModule(context) {
     override fun getName(): String {
@@ -39,45 +41,76 @@ class ImageMarker2Manager(context: ReactApplicationContext): ReactContextBaseJav
         internal val fontSize = map["fontSize"] as? Double?
     }
 
+    private fun isFrescoImg(uri: String?): Boolean {
+        return uri != null && (uri.startsWith("http://") || uri.startsWith("https://") || uri.startsWith("file://") || uri.startsWith("data:") && uri.contains("base64") && (uri.contains("img") || uri.contains("image")))
+    }
+
+    private fun getDrawableResourceByName(name: String): Int {
+        return this.reactApplicationContext.resources.getIdentifier(
+                name,
+                "drawable",
+                this.reactApplicationContext.packageName)
+    }
+
     @ReactMethod
     fun markWithMarksArray(
             source: ReadableMap,
             marksArray: ReadableArray,
             promise: Promise
     ) {
-        val marksArrayList = marksArray.toArrayList() as ArrayList<HashMap<String, Any>>
-        val uri = source.getString("uri")
-        val imageRequest = ImageRequest.fromUri(uri)
-        // max size
-        val dataSource = getImagePipeline().fetchDecodedImage(imageRequest, null)
-        val executor = Executors.newSingleThreadExecutor()
-        dataSource.subscribe(object : BaseBitmapDataSubscriber() {
-            public override fun onNewResultImpl(background: Bitmap?) {
-                if (background == null) {
-                    promise.reject("marker error", "Can't retrieve the file from the src: $uri")
-                    return
-                }
-                try {
+        try {
+            val marksArrayList = marksArray.toArrayList() as ArrayList<HashMap<String, Any>>
+            val uri = source.getString("uri")
+            val paint = Paint()
+            paint.isDither = true
+
+            val executor = Executors.newSingleThreadExecutor()
+
+            if (isFrescoImg(uri)) {
+                val imageRequest = ImageRequest.fromUri(uri)
+                val dataSource = getImagePipeline().fetchDecodedImage(imageRequest, null)
+                dataSource.subscribe(object : BaseBitmapDataSubscriber() {
+                    public override fun onNewResultImpl(background: Bitmap?) {
+                        if (background == null) {
+                            promise.reject("marker error", "Can't retrieve the file from the src: $uri")
+                            return
+                        }
+                        val height = background.height
+                        val width = background.width
+                        val destinationBitmap = Utils.getBlankBitmap(width, height)
+                        val canvas = Canvas(destinationBitmap)
+                        canvas.density = Bitmap.DENSITY_NONE
+                        canvas.drawBitmap(background, 0f, 0f, paint)
+                        drawOnCanvas(destinationBitmap, canvas, paint, marksArrayList, 0, promise)
+                    }
+
+                    override fun onFailureImpl(dataSource: DataSource<CloseableReference<CloseableImage>>) {
+                        promise.reject("marker error", "Can't request the image from the uri: $uri", dataSource.failureCause)
+                    }
+                }, executor)
+            } else {
+                executor.execute {
+                    val resourceId = getDrawableResourceByName(uri ?: "")
+                    if (resourceId == 0) {
+                        promise.reject("error", "Can't get resource by the path: $uri")
+                        return@execute
+                    }
+                    val resources = this.reactApplicationContext.resources
+                    val options = BitmapFactory.Options()
+                    options.inScaled = false
+                    val background = BitmapFactory.decodeResource(resources, resourceId, options)
                     val height = background.height
                     val width = background.width
                     val destinationBitmap = Utils.getBlankBitmap(width, height)
-                    val paint = Paint()
-                    paint.isDither = true
                     val canvas = Canvas(destinationBitmap)
+                    canvas.density = Bitmap.DENSITY_NONE
                     canvas.drawBitmap(background, 0f, 0f, paint)
                     drawOnCanvas(destinationBitmap, canvas, paint, marksArrayList, 0, promise)
-                } catch (e: Exception) {
                 }
-//                finally {
-//                    background.recycle()
-//                    System.gc()
-//                }
             }
-
-            override fun onFailureImpl(dataSource: DataSource<CloseableReference<CloseableImage>>) {
-                promise.reject("error", "Can't request the image from the uri: $uri", dataSource.failureCause)
-            }
-        }, executor)
+        } catch (e: Exception) {
+            promise.reject("marker error", e.message)
+        }
 
     }
 
@@ -120,32 +153,43 @@ class ImageMarker2Manager(context: ReactApplicationContext): ReactContextBaseJav
         val uri = imageMark.imageSource?.get("uri") as? String?
         val x = imageMark.x ?: 0.0
         val y = imageMark.y ?: 0.0
-        val imageRequest = ImageRequest.fromUri(uri)
-        val dataSource = getImagePipeline().fetchDecodedImage(imageRequest, null)
         val executor = Executors.newSingleThreadExecutor()
-        dataSource.subscribe(object : BaseBitmapDataSubscriber() {
-            public override fun onNewResultImpl(bitmap: Bitmap?) {
-                if (bitmap == null) {
-                    promise.reject("marker error", "Can't retrieve the file from the src: $uri")
-                }
-                try {
+        if (isFrescoImg(uri)) {
+            val imageRequest = ImageRequest.fromUri(uri)
+            val dataSource = getImagePipeline().fetchDecodedImage(imageRequest, null)
+            dataSource.subscribe(object : BaseBitmapDataSubscriber() {
+                public override fun onNewResultImpl(bitmap: Bitmap?) {
+                    if (bitmap == null) {
+                        promise.reject("marker error", "Can't retrieve the file from the src: $uri")
+                    }
                     canvas.drawBitmap(bitmap, x.toFloat(), y.toFloat(), paint)
-                } catch (e: Exception) {
+                    drawOnCanvas(destinationBitmap, canvas, paint, marksArray, index + 1, promise)
 
                 }
-//                finally {
-//                    bitmap?.recycle()
-//                    System.gc()
-//                }
-                drawOnCanvas(destinationBitmap, canvas, paint, marksArray, index + 1, promise)
 
+                override fun onFailureImpl(dataSource: DataSource<CloseableReference<CloseableImage>>) {
+                    promise.reject("error", "Can't request the image from the uri: $uri", dataSource.failureCause)
+                    drawOnCanvas(destinationBitmap, canvas, paint, marksArray, index + 1, promise)
+                }
+            }, executor)
+        } else {
+            executor.execute {
+                val resourceId = getDrawableResourceByName(uri ?: "")
+                if (resourceId == 0) {
+                    promise.reject("error", "Can't get resource by the path: $uri")
+                } else {
+
+                    val resources = this.reactApplicationContext.resources
+                    val options = BitmapFactory.Options()
+                    options.inScaled = false
+                    val bitmap = BitmapFactory.decodeResource(resources, resourceId, options)
+                    canvas.drawBitmap(bitmap, x.toFloat(), y.toFloat(), paint)
+                    drawOnCanvas(destinationBitmap, canvas, paint, marksArray, index + 1, promise)
+
+                }
             }
 
-            override fun onFailureImpl(dataSource: DataSource<CloseableReference<CloseableImage>>) {
-                promise.reject("error", "Can't request the image from the uri: $uri", dataSource.failureCause)
-                drawOnCanvas(destinationBitmap, canvas, paint, marksArray, index + 1, promise)
-            }
-        }, executor)
+        }
     }
 
     private fun drawTextOnCanvas(
@@ -163,29 +207,22 @@ class ImageMarker2Manager(context: ReactApplicationContext): ReactContextBaseJav
         val color = textMark.color
         val fontName = textMark.fontName
         val fontSize = textMark.fontSize
-
+        val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG or Paint.DEV_KERN_TEXT_FLAG)
+        textPaint.isAntiAlias = true
         try {
-            val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG or Paint.DEV_KERN_TEXT_FLAG)
-            textPaint.isAntiAlias = true
-
-            try {
-                textPaint.typeface = ReactFontManager.getInstance().getTypeface(fontName, Typeface.NORMAL, this.reactApplicationContext.assets)
-            } catch (e: Exception) {
-                textPaint.typeface = Typeface.DEFAULT
-            }
-
-            textPaint.textSize = (fontSize ?: 12.0).toFloat()
-            textPaint.color = Color.parseColor(transRGBColor(color))
-
-            val textLayout = StaticLayout(text, textPaint, canvas.width, Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false)
-            canvas.save()
-            canvas.translate(x.toFloat(), y.toFloat())
-            textLayout.draw(canvas)
-            canvas.restore()
+            textPaint.typeface = ReactFontManager.getInstance().getTypeface(fontName, Typeface.NORMAL, this.reactApplicationContext.assets)
         } catch (e: Exception) {
-
+            textPaint.typeface = Typeface.DEFAULT
         }
 
+        textPaint.textSize = (fontSize ?: 12.0).toFloat()
+        textPaint.color = Color.parseColor(transRGBColor(color))
+
+        val textLayout = StaticLayout(text, textPaint, canvas.width, Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false)
+        canvas.save()
+        canvas.translate(x.toFloat(), y.toFloat())
+        textLayout.draw(canvas)
+        canvas.restore()
         drawOnCanvas(destinationBitmap, canvas, paint, marksArray, index + 1, promise)
     }
 
