@@ -143,7 +143,7 @@ class ImageMarker2Manager(context: ReactApplicationContext): ReactContextBaseJav
     }
 
     private fun drawImageOnCanvas(
-            destinationBitmap: Bitmap,
+            destinationBitmap: Bitmap?,
             canvas: Canvas,
             paint: Paint,
             marksArray: ArrayList<HashMap<String, Any>>,
@@ -151,6 +151,7 @@ class ImageMarker2Manager(context: ReactApplicationContext): ReactContextBaseJav
             imageMark: ImageMarkObject,
             promise: Promise
     ) {
+        if (destinationBitmap !is Bitmap) return
         val uri = imageMark.imageSource?.get("uri") as? String?
         val x = imageMark.x ?: 0.0
         val y = imageMark.y ?: 0.0
@@ -194,7 +195,7 @@ class ImageMarker2Manager(context: ReactApplicationContext): ReactContextBaseJav
     }
 
     private fun drawTextOnCanvas(
-            destinationBitmap: Bitmap,
+            destinationBitmap: Bitmap?,
             canvas: Canvas,
             paint: Paint,
             marksArray: ArrayList<HashMap<String, Any>>,
@@ -202,6 +203,7 @@ class ImageMarker2Manager(context: ReactApplicationContext): ReactContextBaseJav
             textMark: TextMarkObject,
             promise: Promise
     ) {
+        if (destinationBitmap !is Bitmap) return
         val text = textMark.text
         val x = textMark.x ?: 0.0
         val y = textMark.y ?: 0.0
