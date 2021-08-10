@@ -115,13 +115,14 @@ class ImageMarker2Manager(context: ReactApplicationContext): ReactContextBaseJav
     }
 
     private fun drawOnCanvas(
-            destinationBitmap: Bitmap,
+            destinationBitmap: Bitmap?,
             canvas: Canvas,
             paint: Paint,
             marksArray: ArrayList<HashMap<String, Any>>,
             index: Int,
             promise: Promise
     ) {
+        if (destinationBitmap !is Bitmap) return
         if (index >= marksArray.size) {
             getBase64StringFromBitmap(destinationBitmap, promise)
             return
@@ -159,14 +160,13 @@ class ImageMarker2Manager(context: ReactApplicationContext): ReactContextBaseJav
             val dataSource = getImagePipeline().fetchDecodedImage(imageRequest, null)
             dataSource.subscribe(object : BaseBitmapDataSubscriber() {
                 public override fun onNewResultImpl(bitmap: Bitmap?) {
-                    if (bitmap == null) {
+                    if (bitmap is Bitmap) {
+                        canvas.drawBitmap(bitmap, x.toFloat(), y.toFloat(), paint)
+                        drawOnCanvas(destinationBitmap, canvas, paint, marksArray, index + 1, promise)
+                    } else {
                         promise.reject("marker error", "Can't retrieve the file from the src: $uri")
                     }
-                    canvas.drawBitmap(bitmap, x.toFloat(), y.toFloat(), paint)
-                    drawOnCanvas(destinationBitmap, canvas, paint, marksArray, index + 1, promise)
-
                 }
-
                 override fun onFailureImpl(dataSource: DataSource<CloseableReference<CloseableImage>>) {
                     promise.reject("error", "Can't request the image from the uri: $uri", dataSource.failureCause)
                     drawOnCanvas(destinationBitmap, canvas, paint, marksArray, index + 1, promise)
@@ -183,9 +183,10 @@ class ImageMarker2Manager(context: ReactApplicationContext): ReactContextBaseJav
                     val options = BitmapFactory.Options()
                     options.inScaled = false
                     val bitmap = BitmapFactory.decodeResource(resources, resourceId, options)
+                if (bitmap is Bitmap) { 
                     canvas.drawBitmap(bitmap, x.toFloat(), y.toFloat(), paint)
                     drawOnCanvas(destinationBitmap, canvas, paint, marksArray, index + 1, promise)
-
+                }
                 }
             }
 
