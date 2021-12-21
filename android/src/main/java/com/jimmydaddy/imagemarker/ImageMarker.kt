@@ -37,7 +37,7 @@ class ImageMarker2Manager(context: ReactApplicationContext): ReactContextBaseJav
         internal val x = map["x"] as? Double?
         internal val y = map["y"] as? Double?
         internal val color = map["color"] as? String?
-        internal val fontName = map["fontName"] as? String?
+        internal val fontName = map["fontName"] as String
         internal val fontSize = map["fontSize"] as? Double?
     }
 
